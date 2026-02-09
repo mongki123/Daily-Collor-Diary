@@ -10,8 +10,8 @@ body { font-family:Noto Sans KR,sans-serif; user-select:none; overflow:hidden; b
 .app { width:100vw; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; }
 .viewport { width:100%; height:70vh; overflow:hidden; position:relative; }
 .track { position:absolute; left:50%; top:50%; display:flex; transform:translate(-50%,-50%); }
-.card-wrap { display:flex; flex-direction:column; align-items:center; transition:transform 0.2s ease; margin:0 4vw; }
-.card { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; border-radius:26px; box-shadow:0 12px 30px rgba(0,0,0,0.08); position:relative; }
+.card-wrap { display:flex; flex-direction:column; align-items:center; margin:0 4vw; transition:transform 0.2s ease; }
+.card { display:flex; flex-direction:column; align-items:center; justify-content:flex-end; border-radius:26px; box-shadow:0 12px 30px rgba(0,0,0,0.08); width:40vmin; height:40vmin; background:#fff; }
 .date { margin-top:8px; font-weight:600; font-size:1rem; text-align:center; }
 .text { margin-top:4px; font-size:0.85rem; text-align:center; max-width:90%; word-wrap:break-word; }
 .editor { width:100%; max-width:420px; margin-top:24px; display:flex; flex-direction:column; align-items:center; gap:14px; }
@@ -42,10 +42,7 @@ input { width:90%; padding:10px; border-radius:12px; border:1px solid #ddd; }
 </div>
 
 <script>
-const BASE_SIZE = 40; // 중앙 카드 크기 vmin
-const SIDE_SCALE = 0.7; // 주변 카드 크기 비율
-const SPRING = 0.15; 
-const GAP = 8; // vw 기준 카드 간격
+const GAP = 12; // vw 기준 카드 간격
 let baseIndex = 0;
 let position = 0; 
 let velocity = 0;
@@ -56,7 +53,7 @@ const track = document.getElementById("track");
 const viewport = document.getElementById("viewport");
 const textInput = document.getElementById("textInput");
 
-/* 날짜/데이터 */
+/* ===== 날짜/데이터 ===== */
 function dateByIndex(i){
   const d = new Date();
   d.setDate(d.getDate()+i);
@@ -65,7 +62,7 @@ function dateByIndex(i){
 function format(d){ return d.toISOString().split("T")[0]; }
 function getData(d){ return JSON.parse(localStorage.getItem(format(d)))||{}; }
 
-/* 렌더링 */
+/* ===== 렌더 ===== */
 function render(){
   track.innerHTML="";
   for(let i=-20;i<=20;i++){
@@ -78,9 +75,7 @@ function render(){
 
     const card = document.createElement("div");
     card.className="card";
-    card.style.width=BASE_SIZE+"vmin";
-    card.style.height=BASE_SIZE+"vmin";
-    card.style.background = data.color ? `${data.color}cc` : "#fff"; // 주변 회색톤
+    card.style.background = data.color ? data.color : "#fff";
 
     const dateEl = document.createElement("div");
     dateEl.className="date";
@@ -97,28 +92,18 @@ function render(){
 }
 render();
 
-/* 애니메이션 */
+/* ===== 애니메이션 ===== */
 function animate(){
   const cards = [...document.querySelectorAll(".card-wrap")];
   cards.forEach((c,i)=>{
     const offset = i-20 + position;
-    const cardEl = c.querySelector(".card");
-
-    // 중앙 카드만 크게
-    const scale = (offset===0) ? 1 : SIDE_SCALE;
-    const blur = (offset===0) ? 0 : 4;
-    cardEl.style.transform=`scale(${scale})`;
-    cardEl.style.filter=`blur(${blur}px)`;
-
-    // 간격 고정 + 이동
-    const translateX = offset*GAP;
-    c.style.transform = `translateX(${translateX}vw)`;
-    c.style.zIndex = (offset===0)?100:50;
+    c.style.transform = `translateX(${offset*GAP}vw)`;
+    c.style.zIndex = 50;
   });
 
   if(!dragging){
     const snap = Math.round(position);
-    velocity += (snap - position)*SPRING;
+    velocity += (snap - position)*0.15;
     position += velocity;
     velocity *= 0.8;
 
@@ -133,18 +118,18 @@ function animate(){
 }
 animate();
 
-/* 드래그 */
+/* ===== 드래그 ===== */
 function isInteractive(el){ return el.closest("input,.palette,.color"); }
 
 function startDrag(e){
   if(isInteractive(e.target)) return;
   dragging=true;
-  lastX=e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
+  lastX = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
 }
 function dragMove(e){
   if(!dragging) return;
   const x = e.type.includes("touch") ? e.touches[0].clientX : e.clientX;
-  const dx = x-lastX;
+  const dx = x - lastX;
   velocity = dx*0.003;
   position += velocity;
   lastX = x;
@@ -159,12 +144,12 @@ viewport.addEventListener("touchstart", startDrag);
 viewport.addEventListener("touchmove", dragMove);
 viewport.addEventListener("touchend", endDrag);
 
-/* 저장 */
+/* ===== 저장 ===== */
 document.querySelectorAll(".color").forEach(c=>{
   c.onclick=()=>{
     const d=dateByIndex(baseIndex);
     const data=getData(d);
-    data.color=c.dataset.color; 
+    data.color=c.dataset.color;
     data.text=textInput.value;
     localStorage.setItem(format(d),JSON.stringify(data));
     render();
@@ -180,4 +165,3 @@ textInput.oninput=()=>{
 </script>
 </body>
 </html>
-
