@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Color Diary</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #f0f8ff;
+            color: #333;
+            font-family: 'Segoe UI', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: pan-y;
+        }
+        header {
+            text-align: center;
+            padding: 8px 0;
+            background: #f0f8ff;
+            border-bottom: 1px solid #e0f0ff;
+            flex-shrink: 0;
+            position: relative;
+        }
+        h1 {
+            margin: 0;
+            font-size: 22px;
+            color: #708090;
+        }
+        #view-mode-btn {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            padding: 6px 12px;
+            background: #98fb98;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            z-index: 20;
+        }
+        .timeline {
+            flex: 1;
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+        }
+        .timeline::-webkit-scrollbar { display: none; }
+        .day {
+            flex: 0 0 53vw;               /* ← 요청하신 대로 변경 */
+            height: 100%;
+            scroll-snap-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.35s ease;
+        }
+        .color-bar-wrapper {
+            width: 94%;
+            aspect-ratio: 1 / 1;
+            max-width: 520px;
+            position: relative;
+            border-radius: 28px;
+            overflow: hidden;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+        }
+        .color-bar {
+            position: absolute;
+            inset: 0;
+            background: #d3d3d3;
+            transition: background 0.4s ease;
+        }
+        .date-label {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 17px;
+            font-weight: 600;
+            color: #505050;
+            text-shadow: 0 1px 4px #fff;
+            z-index: 5;
+            white-space: nowrap;
+        }
+        .summary-display {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50%;                    /* ← 요청하신 대로 변경 */
+            max-width: 55%;
+            padding: 8px 12px;
+            background: rgba(255,255,255,0.6);
+            border: none;
+            border-radius: 16px;
+            font-style: italic;
+            color: #444;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            font-size: 15px;
+            line-height: 1.45;
+            z-index: 5;
+            box-sizing: border-box;
+            word-break: break-all;
+            overflow-wrap: break-word;
+        }
+        .day:not(.center) {
+            transform: scale(0.7);
+            opacity: 0.7;
+        }
+        .controls {
+            padding: 12px 16px;
+            background: #f0f8ff;
+            border-top: 1px solid #d8e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .recent-colors {
+            display: flex;
+            gap: 16px;
+        }
+        .color-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            transition: transform 0.22s;
+        }
+        .color-circle:hover { transform: scale(1.22); }
+        .input-section {
+            display: flex;
+            width: 100%;
+            max-width: 440px;
+            gap: 10px;
+        }
+        .summary-input {
+            flex: 1;
+            padding: 11px 15px;
+            border: 1px solid #b0d0e0;
+            border-radius: 12px;
+            font-size: 15px;
+        }
+        #save-btn {
+            padding: 11px 26px;
+            background: #81c9e6;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        #overall-view {
+            display: none;
+            position: fixed;
+            inset: 50px 12px auto auto;
+            width: 320px;
+            max-height: 75vh;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            padding: 16px;
+            overflow-y: auto;
+            z-index: 20;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Daily Color Diary</h1>
+        <button id="view-mode-btn">전체 보기</button>
+    </header>
+
+    <div class="timeline" id="timeline"></div>
+
+    <div class="controls">
+        <div class="recent-colors">
+            <div class="color-circle" style="background:#b0e0e6" data-color="#b0e0e6"></div>
+            <div class="color-circle" style="background:#90ee90" data-color="#90ee90"></div>
+            <div class="color-circle" style="background:#fffacd" data-color="#fffacd"></div>
+            <div class="color-circle" style="background:#ffdab9" data-color="#ffdab9"></div>
+            <div class="color-circle" style="background:#ffc0cb" data-color="#ffc0cb"></div>
+        </div>
+        <div class="input-section">
+            <input type="text" id="summary-input" class="summary-input" placeholder="오늘 하루는 이랬어..">
+            <button id="save-btn">저장</button>
+        </div>
+    </div>
+
+    <div id="overall-view"></div>
+
+    <script>
+        const today = new Date();
+        const colors = {};
+        let currentIndex = 100;  // 초기 중앙 인덱스
+
+        const initialRange = 200;
+        const addRange = 60;
+
+        function getDateByOffset(offset) {
+            const d = new Date(today);
+            d.setDate(today.getDate() + offset);
+            return d.toISOString().split('T')[0];
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('colorDiary');
+            if (saved) Object.assign(colors, JSON.parse(saved));
+        }
+
+        function saveData() {
+            localStorage.setItem('colorDiary', JSON.stringify(colors));
+        }
+
+        function createDay(offset) {
+            const date = getDateByOffset(offset);
+            const data = colors[date] || { color: '#d3d3d3', summary: '' };
+            const div = document.createElement('div');
+            div.className = 'day';
+            div.dataset.offset = offset;
+            div.innerHTML = `
+                <div class="date-label">${date}</div>
+                <div class="color-bar-wrapper">
+                    <div class="color-bar" style="background:${data.color}"></div>
+                </div>
+                <div class="summary-display">${data.summary}</div>
+            `;
+            return div;
+        }
+
+        function initTimeline() {
+            const tl = document.getElementById('timeline');
+            for (let i = -initialRange/2; i <= initialRange/2; i++) {
+                tl.appendChild(createDay(i));
+            }
+            // 오늘 날짜가 중앙에 정확히 오도록 강제 스크롤
+            const todayOffset = 0;  // 오늘은 offset 0
+            const todayIndex = initialRange/2 + todayOffset;
+            currentIndex = todayIndex;
+            tl.scrollTo({ 
+                left: todayIndex * (window.innerWidth * 0.53), 
+                behavior: 'instant' 
+            });
+        }
+
+        function addMoreDays(dir) {
+            const tl = document.getElementById('timeline');
+            if (dir === 'left') {
+                const start = parseInt(tl.firstChild.dataset.offset) - addRange;
+                for (let i = start; i < start + addRange; i++) {
+                    tl.insertBefore(createDay(i), tl.firstChild);
+                }
+                tl.scrollLeft += addRange * (window.innerWidth * 0.53);
+                currentIndex += addRange;
+            } else {
+                const start = parseInt(tl.lastChild.dataset.offset) + 1;
+                for (let i = start; i < start + addRange; i++) {
+                    tl.appendChild(createDay(i));
+                }
+            }
+        }
+
+        loadData();
+        initTimeline();
+
+        const timeline = document.getElementById('timeline');
+        let isDown = false, startX, scrollL;
+
+        timeline.addEventListener('scroll', () => {
+            const iw = window.innerWidth * 0.53;
+            const sl = timeline.scrollLeft;
+            const max = timeline.scrollWidth - timeline.clientWidth;
+
+            if (sl < iw * 1.8) addMoreDays('left');
+            if (sl > max - iw * 1.8) addMoreDays('right');
+
+            currentIndex = Math.round(sl / iw);
+
+            Array.from(timeline.children).forEach((el, idx) => {
+                el.classList.toggle('center', idx === currentIndex);
+            });
+        });
+
+        ['mousedown','touchstart'].forEach(e => timeline.addEventListener(e, ev => {
+            isDown = true;
+            startX = (ev.pageX || ev.touches[0].pageX) - timeline.offsetLeft;
+            scrollL = timeline.scrollLeft;
+        }));
+        ['mouseleave','mouseup','touchend'].forEach(e => timeline.addEventListener(e, () => isDown = false));
+        ['mousemove','touchmove'].forEach(e => timeline.addEventListener(e, ev => {
+            if (!isDown) return;
+            ev.preventDefault();
+            const x = (ev.pageX || ev.touches[0].pageX) - timeline.offsetLeft;
+            timeline.scrollLeft = scrollL - (x - startX) * 1.6;
+        }));
+
+        document.querySelectorAll('.color-circle').forEach(c => {
+            c.addEventListener('click', e => {
+                const col = e.target.dataset.color;
+                const off = parseInt(timeline.children[currentIndex].dataset.offset);
+                const dt = getDateByOffset(off);
+                colors[dt] = colors[dt] || {};
+                colors[dt].color = col;
+                timeline.children[currentIndex].querySelector('.color-bar').style.background = col;
+                saveData();
+            });
+        });
+
+        document.getElementById('save-btn').addEventListener('click', () => {
+            const val = document.getElementById('summary-input').value.trim();
+            if (!val) return;
+            const off = parseInt(timeline.children[currentIndex].dataset.offset);
+            const dt = getDateByOffset(off);
+            colors[dt] = colors[dt] || {};
+            colors[dt].summary = val;
+            timeline.children[currentIndex].querySelector('.summary-display').textContent = val;
+            saveData();
+            document.getElementById('summary-input').value = '';
+        });
+
+        document.getElementById('view-mode-btn').addEventListener('click', () => {
+            const v = document.getElementById('overall-view');
+            v.style.display = v.style.display === 'block' ? 'none' : 'block';
+            if (v.style.display === 'block') {
+                v.innerHTML = '<h3 style="margin-top:0">기록된 날들</h3>';
+                Object.keys(colors).sort().forEach(d => {
+                    const data = colors[d];
+                    v.innerHTML += `<p>${d} <span style="background:${data.color};width:14px;height:14px;border-radius:50%;display:inline-block;vertical-align:middle;margin:0 6px;"></span> ${data.summary || '(빈 기록)'}</p>`;
+                });
+            }
+        });
+    </script>
+</body>
+</html>
